@@ -6,17 +6,11 @@ import numpy as np
 from typing_extensions import Protocol
 
 from . import operators
-from .tensor_data import (
-    MAX_DIMS,
-    broadcast_index,
-    index_to_position,
-    shape_broadcast,
-    to_index,
-)
+from .tensor_data import broadcast_index, index_to_position, shape_broadcast, to_index
 
 if TYPE_CHECKING:
     from .tensor import Tensor
-    from .tensor_data import Index, Shape, Storage, Strides
+    from .tensor_data import Shape, Storage, Strides
 
 
 class MapProto(Protocol):
@@ -268,8 +262,16 @@ def tensor_map(fn: Callable[[float], float]) -> Any:
         in_shape: Shape,
         in_strides: Strides,
     ) -> None:
-        # TODO: Implement for Task 2.3.
-        raise NotImplementedError("Need to implement for Task 2.3")
+
+        position = np.zeros(len(in_shape), dtype=np.int32)
+        out_index = np.zeros(len(out_shape), dtype=np.int32)
+
+        for ordinal in range(len(out)):
+            to_index(ordinal, out_shape, out_index)
+            broadcast_index(out_index, out_shape, in_shape, position)
+            place_to_write = index_to_position(out_index, out_strides)
+            place_to_read = index_to_position(position, in_strides)
+            out[place_to_write] = fn(in_storage[place_to_read])
 
     return _map
 
@@ -318,8 +320,21 @@ def tensor_zip(fn: Callable[[float, float], float]) -> Any:
         b_shape: Shape,
         b_strides: Strides,
     ) -> None:
-        # TODO: Implement for Task 2.3.
-        raise NotImplementedError("Need to implement for Task 2.3")
+
+        a_position = np.zeros(len(a_shape), dtype=np.int32)
+        b_position = np.zeros(len(b_shape), dtype=np.int32)
+        out_index = np.zeros(len(out_shape), dtype=np.int32)
+
+        for ordinal in range(len(out)):
+            to_index(ordinal, out_shape, out_index)
+            broadcast_index(out_index, out_shape, a_shape, a_position)
+            broadcast_index(out_index, out_shape, b_shape, b_position)
+            place_to_write = index_to_position(out_index, out_strides)
+            place_to_read_a = index_to_position(a_position, a_strides)
+            place_to_read_b = index_to_position(b_position, b_strides)
+            out[place_to_write] = fn(
+                a_storage[place_to_read_a], b_storage[place_to_read_b]
+            )
 
     return _zip
 
@@ -354,8 +369,23 @@ def tensor_reduce(fn: Callable[[float, float], float]) -> Any:
         a_strides: Strides,
         reduce_dim: int,
     ) -> None:
-        # TODO: Implement for Task 2.3.
-        raise NotImplementedError("Need to implement for Task 2.3")
+        out_index = np.zeros(len(out_shape), dtype=np.int32)
+        a_position = np.zeros(len(a_shape), dtype=np.int32)
+
+        used = np.zeros_like(out)
+
+        for ordinal in range(len(a_storage)):
+            to_index(ordinal, a_shape, a_position)
+            broadcast_index(a_position, a_shape, out_shape, out_index)
+
+            place_to_write = index_to_position(out_index, out_strides)
+            place_to_read = index_to_position(a_position, a_strides)
+
+            if used[place_to_write] == 0:
+                used[place_to_write] = 1
+                out[place_to_write] = a_storage[place_to_read]
+            else:
+                out[place_to_write] = fn(out[place_to_write], a_storage[place_to_read])
 
     return _reduce
 

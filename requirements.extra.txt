@@ -6,5 +6,5 @@ pydot==1.4.1
 python-mnist
 streamlit==1.12.0
 streamlit-ace
-torch
+torch==2.1.*
 watchdog==1.0.2
