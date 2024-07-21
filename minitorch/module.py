@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 
 class Module:
@@ -31,11 +31,15 @@ class Module:
 
     def train(self) -> None:
         "Set the mode of this module and all descendent modules to `train`."
-        raise NotImplementedError("Need to include this file from past assignment.")
+        self.training = True
+        for _, module in self._modules.items():
+            module.train()
 
     def eval(self) -> None:
         "Set the mode of this module and all descendent modules to `eval`."
-        raise NotImplementedError("Need to include this file from past assignment.")
+        self.training = False
+        for _, module in self._modules.items():
+            module.eval()
 
     def named_parameters(self) -> Sequence[Tuple[str, Parameter]]:
         """
@@ -45,11 +49,29 @@ class Module:
         Returns:
             The name and `Parameter` of each ancestor parameter.
         """
-        raise NotImplementedError("Need to include this file from past assignment.")
+        returning_params: List[Tuple[str, Parameter]] = []
+        for name, param in self._parameters.items():
+            returning_params.append((name, param))
+
+        for name, module in self._modules.items():
+            descend_parameters = module.named_parameters()
+            returning_params += [
+                (f"{name}.{param_name}", param)
+                for param_name, param in descend_parameters
+            ]
+
+        return returning_params
 
     def parameters(self) -> Sequence[Parameter]:
         "Enumerate over all the parameters of this module and its descendents."
-        raise NotImplementedError("Need to include this file from past assignment.")
+        returning_params: List[Parameter] = []
+        for _, param in self._parameters.items():
+            returning_params.append(param)
+
+        for _, module in self._modules.items():
+            returning_params += module.parameters()
+
+        return returning_params
 
     def add_parameter(self, k: str, v: Any) -> Parameter:
         """
@@ -115,9 +137,9 @@ class Module:
 
 class Parameter:
     """
-    A Parameter is a special container stored in a `Module`.
+    A Parameter is a special container stored in a :class:`Module`.
 
-    It is designed to hold a `Variable`, but we allow it to hold
+    It is designed to hold a :class:`Variable`, but we allow it to hold
     any value for testing.
     """
 
